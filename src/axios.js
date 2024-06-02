@@ -5,8 +5,7 @@ import axios from 'axios';
 axios.defaults.withCredentials = false;
 
 // 使用环境变量设置 baseURL
-// const baseURL = process.env.VUE_APP_API_BASE_URL; 
-const baseURL = 'http://106.14.240.164:8000'; 
+const baseURL = process.env.VUE_APP_API_BASE_URL; 
 
 // 创建axios实例
 const instance = axios.create({

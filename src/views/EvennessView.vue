@@ -63,6 +63,7 @@ const structure = {
 
 const results = ref({...structure}); // '...'指浅拷贝
 const showResult = ref(false); // 决定是否展示结果框
+const baseUrl = process.env.VUE_APP_IMG_BASE_URL;
 
 // 在未显示结果时显示“加载图标”
 // 提高用户体验
@@ -106,7 +107,12 @@ const currentImageInfo = computed(
     () => results.value.details[currentImageIndex]
 );
 // 绑定当前图片路径
-const currentImageUrl = computed(() => currentImageInfo.value.imagePath);
+const currentImageUrl = computed(() => {
+  if (currentImageInfo.value) {
+    return `${baseUrl}${currentImageInfo.value.img}`;
+  }
+  return '';
+});
 // 绑定当前图片提示文字
 const currentImageText = computed(() => currentImageInfo.value.text);
 

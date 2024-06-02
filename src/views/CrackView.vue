@@ -21,19 +21,6 @@
             <p class="sub-tips-item">幕墙爆裂检测结果:</p>
             <p style="display: inline-block;">{{ results.textTip }}</p>
         </el-row>
-        <el-divider  class="divider"/>
-        <!-- 第二行展示图片 -->
-        <el-row>
-            <div class="result-img-container">
-                <div class="result-img-wrapper"
-                v-for="(img,index) in results.imgURL"
-                :key="index"
-                >
-                    <p class="res-type">{{ img.type }}</p>
-                    <img :src="img.url" class="res-img">
-                </div>
-            </div>
-        </el-row>
         </div>
     </div>
 </template>
@@ -46,11 +33,9 @@ import axios from '@/axios'
 const uploadCompleted = ref(false);  // 标志变量，控制按钮显示和隐藏
 
 const showResult = ref(false); // 决定是否展示结果框
-//const img_base_url = "http://106.14.240.164:8080/output/"; // 之后进行路径拼接
 const results = ref({
     textTip:'',
-    imgURL:[]
-}); // 最终的结果展示;texTip:string;imgURL:array<string>
+}); // 最终的结果展示;texTip:string;
 
 // 在未显示结果时显示“加载图标”
 // 提高用户体验
@@ -65,18 +50,24 @@ const confirmUpload = async (file) => {
     formData.append('photo', file.fileList[0].raw);
 
     try {
-        const response = await axios.post('/', formData);
+        const res = await axios.post('', formData);
         
-        if (response.status === 200) {
+        if (res.status === 200) {
             // 服务器返回的完整玻璃和破碎玻璃结果字符串
-            results.value.textTip = response.data;
+            results.value.textTip = res.data;
             loading.value = false;
         } else {
-            console.error('服务器返回状态不是 200');
+            ElMessage({
+                message: '服务器状态码错误！',
+                type: 'warning',
+            })
             loading.value = false;
         }
     } catch (error) {
-        console.error('接口调用失败！');
+        ElMessage({
+            message: '接口调用失败',
+            type: 'error',
+        })
         loading.value = false;
         console.error(error);
     }
@@ -88,7 +79,6 @@ const onCancel = () => {
     showResult.value = false; // 将刚才拿到的结果清空
     results.value = {
         textTip:'',
-        imgURL:[]
     }
 }
 
