@@ -1,45 +1,73 @@
 <template>
     <div>
+        <!-- img上传后过渡到左侧 -->
         <p class="page-title">玻璃幕墙平整度检测</p>
-        <p class="tips">请您上传一张图片</p>
-        <ImgUpload 
-            @confirmUpload="confirmUpload"
-            @onCancel="onCancel"
-        >
-        </ImgUpload>
+        
+        <div style="
+            display: flex;
+            flex-direction: row;">
+            <transition name="left-slide">
+                <div
+                    class="upload-container"
+                    :class="{'move-left' : success}"
+                >
+                    <p class="tips">请您上传一张图片</p>
+                    <ImgUpload 
+                        @confirmUpload="confirmUpload"
+                        @onCancel="onCancel"
+                    >
+                    </ImgUpload>
+                </div>
+            </transition>
 
         <div 
             class="result-list-container"
             v-if="showResult"
             v-loading="loading"
+            :class="{'move-right' : success}"
         >
             <br/>
             <div 
                 class="default"
-                v-if="success">
+                v-if="success"
+            >
                 <!-- 第一行展示整体结果 -->
-                <el-row>
+                <div class="overall-result-container">
                     <p class="sub-tips-item">检测结果:&nbsp;</p>
-                    <p style="display: inline-block;">{{ results.status }}</p>
-                </el-row>
-                <el-divider class="divider"/>
-                <!-- 第二行展示裁剪后的图片 -->
-                <el-row>
+                    <p style="display: inline-block;">{{ results.textTip }}</p>
+                </div>
+                
+                <!-- 第二行：
+                    sub-line-1：图片
+                    sub-line-2：鼠标位置提示+详细结果+按钮区域 
+                -->
+                <div class="detail-container">
                     <div class="photo-display-container">
-                        <img :src="currentImageUrl" class="photo-display-img">
-                        <p>{{ currentImageText }}</p>
+                        <img :src="currentImageUrl" class="photo-display-img"
+                        @mousemove="GetMousePos">
                     </div>
-                </el-row>
-                <!-- 按钮区域 -->
-                <el-row>
-                    <el-button @click="prevImage">上一张</el-button>
-                    <el-button @click="nextImage">下一张</el-button>
-                </el-row>
+
+                    <div class="tip-info-container">
+                        <div class="img-result-container">
+                            <div>{{ currentImageText }}</div>
+                        </div>
+
+                        <div class="mouse-pos-container">
+                            <div>X = {{ mouseX }}, Y = {{ mouseY }}</div>
+                        </div>
+                        <div class="botton-container">
+                            <el-button @click="prevImage">上一张</el-button>
+                            <el-button @click="nextImage">下一张</el-button>
+                        </div>
+                    </div>
+                </div>
             </div>
+
             <!-- 如果没能成功拿到结果，显示缺省组件 -->
             <div v-else>
                 <p>没有拿到结果</p>
             </div>
+        </div>
         </div>
     </div>
 </template>
@@ -62,13 +90,14 @@ const structure = {
 };
 
 const results = ref({...structure}); // '...'指浅拷贝
+
 const showResult = ref(false); // 决定是否展示结果框
-const baseUrl = process.env.VUE_APP_IMG_BASE_URL;
 
 // 在未显示结果时显示“加载图标”
 // 提高用户体验
 const loading = ref(true); 
 const success = ref(true);
+const baseUrl = process.env.VUE_APP_IMG_BASE_URL;
 
 // 确认上传
 const confirmUpload = async (file) => {
@@ -130,12 +159,16 @@ const nextImage = () => {
     }
 }
 
+// 在图片框中鼠标的位置
+const mouseX = ref(null);
+const mouseY = ref(null);
+const GetMousePos = (e) => {
+    mouseX.value = e.offsetX;
+    mouseY.value = e.offsetY;
+}
 // 更换了想要检测的图片
 const onCancel = () => {
-    ElMessage({
-        message: '您清空了图片输入',
-        type: 'warning',
-    })
+    console.log("you have canceled the upload");
     showResult.value = false; // 将刚才拿到的结果清空
     results.value = {
         textTip:'',
@@ -143,9 +176,7 @@ const onCancel = () => {
     }
     currentImageIndex.value = 0;
 }
-
 </script>
-
 
 <style lang="scss" scoped>
 .tips {
@@ -154,32 +185,93 @@ const onCancel = () => {
     justify-content: center;
 }
 
+// 图片上传组件container
+.upload-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex:1; //默认占屏幕的1/3
+}
+// 动画
+.left-slide-enter-active, .left-slide-leave-active {
+    transition: all 10s ease;
+}
+
+// 装有全部返回结果的container
+.default {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.move-right {
+    transform: translateX(40vx);
+}
+
 .divider {
     margin: 9px;
 }
 
+// 详细结果：分两行
 // 展示结果的盒子
 .result-list-container {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     width: 90%;
-    margin: 0 auto; /* 居中对齐并给予边距 */
+    // margin: 0 auto; /* 居中对齐并给予边距 */
+    flex: 2; //默认占2/3
 }
 
+.detail-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+// 第一行是图片
 .photo-display-container {
     display: flex;
     flex-direction: row;
     align-items: center;
+    justify-content: center;
     padding: 10px;
     box-sizing: border-box;
+
+    img {
+        width: 80%;
+        height: auto;
+    }
 }
 
-.photo-display-img {
-    width: 150px; /* 调整图片宽度 */
-    height: auto;
-    margin-right: 10px; /* 图片右边距 */
+// 第二行是各种提示
+.tip-info-container {
+    display: flex;
+    justify-content: space-between; /* 子元素两边对齐，平分剩余空间 */
+    align-items: center; /* 垂直居中对齐子元素 */
+    width: 100%; /* 父容器占满宽度 */
+
+    .img-result-container, .mouse-pos-container, .button-container {
+    display: flex;
+    justify-content: center; /* 子元素内容水平居中对齐 */
+    align-items: center; /* 子元素内容垂直居中对齐 */
 }
+}
+
+
+// .button {
+//     display: flex;
+//     flex-direction: row;
+//     padding: 5px 10px;
+// }
+
+
+// .photo-display-img {
+//     width: 150px; /* 调整图片宽度 */
+//     height: auto;
+//     margin-right: 10px; /* 图片右边距 */
+// }
 
 .sub-tips-item {
     font-weight: bolder;
