@@ -1,4 +1,3 @@
-
 <template>
     <div>
         <p class="page-title">玻璃幕墙爆裂检测</p>
@@ -29,6 +28,7 @@
 import ImgUpload  from '@/components/ImgUpload.vue'
 import { ref } from 'vue'
 import axios from '@/axios'
+import { ElMessage } from 'element-plus';
 
 const uploadCompleted = ref(false);  // 标志变量，控制按钮显示和隐藏
 

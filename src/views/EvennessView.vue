@@ -3,22 +3,24 @@
         <!-- img上传后过渡到左侧 -->
         <p class="page-title">玻璃幕墙平整度检测</p>
         
+        <!-- 这个transition失败是因为按官访文档，至少应该配合v-if/v-show使用 -->
         <div style="
             display: flex;
             flex-direction: row;">
-            <transition name="left-slide">
-                <div
-                    class="upload-container"
-                    :class="{'move-left' : success}"
+            
+            <div
+                class="upload-container"
+                :class="{'move-left' : success}"
+            >
+                <p class="tips">请您上传一张图片</p>
+                <ImgUpload 
+                    @confirmUpload="confirmUpload"
+                    @onCancel="onCancel"
+                    :disabled="uploadCompleted"
                 >
-                    <p class="tips">请您上传一张图片</p>
-                    <ImgUpload 
-                        @confirmUpload="confirmUpload"
-                        @onCancel="onCancel"
-                    >
-                    </ImgUpload>
-                </div>
-            </transition>
+                </ImgUpload>
+            </div>
+            
 
         <div 
             class="result-list-container"
@@ -90,7 +92,7 @@ const structure = {
 };
 
 const results = ref({...structure}); // '...'指浅拷贝
-
+const uploadCompleted = ref(false);  // 标志变量，控制按钮显示和隐藏
 const showResult = ref(false); // 决定是否展示结果框
 
 // 在未显示结果时显示“加载图标”
@@ -133,7 +135,7 @@ const confirmUpload = async (file) => {
 const currentImageIndex = ref(0);
 // 绑定当前图片信息
 const currentImageInfo = computed(
-    () => results.value.details[currentImageIndex]
+    () => results.value.details[currentImageIndex.value]
 );
 // 绑定当前图片路径
 const currentImageUrl = computed(() => {
@@ -142,8 +144,9 @@ const currentImageUrl = computed(() => {
   }
   return '';
 });
+
 // 绑定当前图片提示文字
-const currentImageText = computed(() => currentImageInfo.value.text);
+const currentImageText = computed(() => currentImageInfo.value.info);
 
 // 切换到上一张图片
 const prevImage = () => {
