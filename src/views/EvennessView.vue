@@ -82,13 +82,9 @@ import { ElMessage } from 'element-plus';
 
 // 定义一个结果返回结构
 const structure = {
-  status: '', // 整体结果
-  details: [
-    {
-      img: '', // 图片URL
-      info: ''
-    }
-  ]
+    messageList:[],
+    photoURL:[],
+    badmessage:[],
 };
 
 const results = ref({...structure}); // '...'指浅拷贝
@@ -111,11 +107,13 @@ const confirmUpload = async (file) => {
     formData.append('photo', file.fileList[0].raw);
 
     try {
-        const res = await axios.post('/flat', formData);
+        
+        const res = await axios.post('/flatDetect/', formData);
         
         if(res.status === 200) {
-            results.value.status = res.data.status;
-            results.value.details = res.data.details;
+            results.value.messageList = res.data.messageList;
+            results.value.photoURL = res.data.photoURL;
+            results.value.badmessage = res.data.badmessage;
         } else {
             ElMessage({
                 message: '服务器状态码错误！',
@@ -133,20 +131,18 @@ const confirmUpload = async (file) => {
 };
 
 const currentImageIndex = ref(0);
-// 绑定当前图片信息
-const currentImageInfo = computed(
-    () => results.value.details[currentImageIndex.value]
-);
+
 // 绑定当前图片路径
 const currentImageUrl = computed(() => {
-  if (currentImageInfo.value) {
-    return `${baseUrl}${currentImageInfo.value.img}`;
+  if (results.value.photoURL[currentImageIndex.value]) {
+    let url = results.value.photoURL[currentImageIndex.value]
+    return `${baseUrl}${url}`;
   }
   return '';
 });
 
 // 绑定当前图片提示文字
-const currentImageText = computed(() => currentImageInfo.value.info);
+const currentImageText = computed(() => results.value.messageList[currentImageIndex.value]);
 
 // 切换到上一张图片
 const prevImage = () => {
@@ -157,7 +153,7 @@ const prevImage = () => {
 
 // 切换到下一张图片
 const nextImage = () => {
-    if (currentImageIndex.value < results.value.details.length - 1) {
+    if (currentImageIndex.value < results.value.photoURL.length - 1) {
         currentImageIndex.value++;
     }
 }
