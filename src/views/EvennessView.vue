@@ -4,72 +4,83 @@
         <p class="page-title">玻璃幕墙平整度检测</p>
         
         <!-- 这个transition失败是因为按官访文档，至少应该配合v-if/v-show使用 -->
+        
+        <!-- 使用grid确定两行布局;且第一行仅1&2 -->
         <div style="
-            display: flex;
-            flex-direction: row;">
-            
-            <div
-                class="upload-container"
-                :class="{'move-left' : success}"
-            >
-                <p class="tips">请您上传一张图片</p>
-                <ImgUpload 
-                    @confirmUpload="confirmUpload"
-                    @onCancel="onCancel"
-                    :disabled="uploadCompleted"
-                >
-                </ImgUpload>
-            </div>
-            
-
-        <div 
-            class="result-list-container"
-            v-if="showResult"
-            v-loading="loading"
-            :class="{'move-right' : success}"
+            display: grid;
+            grid-auto-flow: row ;"
         >
-            <br/>
-            <div 
-                class="default"
-                v-if="success"
-            >
-                <!-- 第一行展示整体结果 -->
-                <div class="overall-result-container">
-                    <p class="sub-tips-item">检测结果:&nbsp;</p>
-                    <p style="display: inline-block;">{{ results.textTip }}</p>
+            <!-- flexbox2-1:flexbox1的子flex，包含两列 -->
+            <div >
+                <div
+                    class="upload-container"
+                    :class="{'move-left' : success}"
+                >
+                    <p class="tips">请您上传一张图片</p>
+                    <ImgUpload 
+                        @confirmUpload="confirmUpload"
+                        @onCancel="onCancel"
+                        :disabled="uploadCompleted"
+                    >
+                    </ImgUpload>
                 </div>
-                
-                <!-- 第二行：
-                    sub-line-1：图片
-                    sub-line-2：鼠标位置提示+详细结果+按钮区域 
-                -->
-                <div class="detail-container">
-                    <div class="photo-display-container">
-                        <img :src="currentImageUrl" class="photo-display-img"
-                        @mousemove="GetMousePos">
-                    </div>
+            
 
-                    <div class="tip-info-container">
-                        <div class="img-result-container">
-                            <div>{{ currentImageText }}</div>
+                <div 
+                    class="result-list-container"
+                    v-if="showResult"
+                    v-loading="loading"
+                    :class="{'move-right' : success}"
+                >
+                    <br/>
+                    <div 
+                        class="default"
+                        v-if="success"
+                    >
+                        <!-- 第一行展示整体结果 -->
+                        <div class="overall-result-container">
+                            <p class="sub-tips-item">检测结果:&nbsp;</p>
+                            <p style="display: inline-block;">{{ results.textTip }}</p>
+                        </div>
+                        
+                        <!-- 第二行：
+                            sub-line-1：图片
+                            sub-line-2：鼠标位置提示+详细结果+按钮区域 
+                        -->
+                        <div class="detail-container">
+                            <div class="photo-display-container">
+                                <img :src="currentImageUrl" class="photo-display-img"
+                                @mousemove="GetMousePos">
+                            </div>
+
+                            <div class="tip-info-container">
+                                <div class="img-result-container">
+                                    <div>{{ currentImageText }}</div>
+                                </div>
+
+                                <div class="mouse-pos-container">
+                                    <div>X = {{ mouseX }}, Y = {{ mouseY }}</div>
+                                </div>
+                                <div class="botton-container">
+                                    <el-button @click="prevImage">上一张</el-button>
+                                    <el-button @click="nextImage">下一张</el-button>
+                                </div>
+                            </div> 
                         </div>
 
-                        <div class="mouse-pos-container">
-                            <div>X = {{ mouseX }}, Y = {{ mouseY }}</div>
-                        </div>
-                        <div class="botton-container">
-                            <el-button @click="prevImage">上一张</el-button>
-                            <el-button @click="nextImage">下一张</el-button>
-                        </div>
+                        <!-- 第三行：表格展示所有不一致的图片信息 -->
+                        <el-table :data="results.badmessage" border style="width: 100%">
+                            <el-table-column prop="No." label="seq" width="180" />
+                            <el-table-column prop="address" label="info" />
+                        </el-table>
                     </div>
+                </div>
+
+                <!-- 如果没能成功拿到结果，显示缺省组件 -->
+                <div v-else>
+                    <p>没有拿到结果</p>
                 </div>
             </div>
-
-            <!-- 如果没能成功拿到结果，显示缺省组件 -->
-            <div v-else>
-                <p>没有拿到结果</p>
-            </div>
-        </div>
         </div>
     </div>
 </template>
@@ -84,7 +95,12 @@ import { ElMessage } from 'element-plus';
 const structure = {
     messageList:[],
     photoURL:[],
-    badmessage:[],
+    badmessage:[
+        {
+            seq:0,
+            info:'',
+        }
+    ],
 };
 
 const results = ref({...structure}); // '...'指浅拷贝
@@ -111,9 +127,16 @@ const confirmUpload = async (file) => {
         const res = await axios.post('/flatDetect/', formData);
         
         if(res.status === 200) {
+            console.log(res.data);
             results.value.messageList = res.data.messageList;
             results.value.photoURL = res.data.photoURL;
-            results.value.badmessage = res.data.badmessage;
+            // 将返回的badmessage整理成表格数据；我觉得这种数据整理写到这里其实并不好,但这应该是好想到底一种方式
+            res.data.badmessage.forEach((element,index) => {
+                results.value.badmessage[index].seq = index;
+                results.value.badmessage[index].info = element;
+            });
+            console.log(results.value);
+            loading.value = false;
         } else {
             ElMessage({
                 message: '服务器状态码错误！',
@@ -121,6 +144,7 @@ const confirmUpload = async (file) => {
             })
             loading.value = false;
         }
+        
     } catch (e) {
         ElMessage({
             message: '请求失败！',
