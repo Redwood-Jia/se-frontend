@@ -17,4 +17,7 @@ module.exports = defineConfig({
         ElementPlus(),
     ],
   },
+  devServer : {
+    port : 8080, //指定项目本地运行的 端口
+  },
 })

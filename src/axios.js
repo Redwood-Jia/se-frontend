@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // 是否需要携带cookie
-axios.defaults.withCredentials = false;
+axios.defaults.withCredentials = true;
 
 // 使用环境变量设置 baseURL
 const baseURL = process.env.VUE_APP_API_BASE_URL; 
