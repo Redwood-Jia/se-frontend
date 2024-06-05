@@ -21,6 +21,8 @@
                     <!-- 整体结果展示 -->
                     <div class="overall-result-container">
                         <p class="sub-tips-item">检测结果:&nbsp;</p>
+                         <!-- 添加提示信息 -->
+                         <p class="sequence-info">(按从上往下，从左往右的顺序进行玻璃序号计数)</p>
                         <p style="display: inline-block;">{{ results.textTip }}</p>
                     </div>
                     
@@ -279,5 +281,12 @@ watch(currentImageIndex, (newIndex) => {
 .sub-tips-item {
     font-weight: bolder;
     display: inline-block;
+}
+
+.sequence-info {
+    font-size: 14px;
+    color: #888;
+    text-align: center;
+    margin-top: 5px;
 }
 </style>
