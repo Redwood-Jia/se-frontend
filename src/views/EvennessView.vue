@@ -1,321 +1,197 @@
 <template>
     <div>
-        <p class="page-title">玻璃幕墙平整度检测</p>
-
-        <div class="grid-container">
-            <!-- 图片上传部分 -->
-            <div class="upload-container">
-                <p class="tips">请您上传一张图片</p>
-                <ImgUpload 
-                    @confirmUpload="confirmUpload"
-                    @onCancel="onCancel"
-                    :disabled="uploadCompleted"
-                >
-                </ImgUpload>
-            </div>
-
-            <!-- 结果展示部分 -->
-            <div v-if="showResult" class="result-list-container" v-loading="loading">
-                <el-divider></el-divider>
-                <div class="default" v-if="success">
-                    <!-- 整体结果展示 -->
-                    <div class="overall-result-container">
-                        <p class="sub-tips-item">检测结果&nbsp;</p>
-                         <!-- 添加提示信息 -->
-                        <p class="sequence-info">(按从上往下，从左往右的顺序进行玻璃序号计数)</p>
-                    </div>
-                    
-                    <!-- 详细结果展示 -->
-                    <div class="detail-container">
-                        <div class="photo-display-container">
-                            <img :src="currentImageUrl" class="photo-display-img" @mousemove="GetMousePos">
-                        </div>
-
-                        <div class="tip-info-container">
-                            <div class="img-result-container">
-                                <div>{{ currentImageText }}</div>
-                            </div>
-                        </div>
-
-                        <div class="mouse-pos-container">
-                            <div>X = {{ mouseX }}, Y = {{ mouseY }}</div>
-                        </div>
-
-                        <div class="button-container">
-                            <el-button @click="prevImage">上一张</el-button>
-                            <el-button @click="nextImage">下一张</el-button>
-                        </div>
-                    </div>
-
-
-                    <!-- 表格展示所有不一致的图片信息 -->
-                    <el-table :data="results.badmessage" border style="width: 90%">
-                        <el-table-column prop="seq" label="序号" width="180" align="center"/>
-                        <el-table-column prop="info" label="信息" align="center"/>
-                    </el-table>
-                </div>
-
-                <!-- 如果没有成功获取结果，显示缺省组件 -->
-                <div v-else>
-                    <p>没有拿到结果</p>
-                </div>
-            </div>
+      <p class="page-title">玻璃幕墙平整度检测</p>
+      <div class="grid-container">
+        <div class="upload-and-table-container">
+          <!-- 图片上传部分 -->
+          <div class="upload-container">
+            <p class="tips">请您上传一张图片</p>
+            <ImgUpload @confirmUpload="confirmUpload" @onCancel="onCancel" :disabled="uploadCompleted" v-model:visible="showUpload">
+            </ImgUpload>
+          </div>
+          <!-- 新增的表格 -->
+          <div v-if="showResult" class="table-container" v-loading="loading" element-loading-text="检测中...">
+          <el-table :data="tableData" border :show-header="false" class="scaled-table">
+            <el-table-column v-for="(col, index) in cols" :key="index" align="center">
+              <template v-slot="scope">
+                {{ scope.row[index] }}
+              </template>
+            </el-table-column>
+          </el-table>
         </div>
+      </div>
+        <!-- 原来的检测信息表格 -->
+        <div v-if="showResult" class="result-list-container" v-loading="loading">
+          <el-divider></el-divider>
+          <!-- 表格展示所有不一致的图片信息 -->
+  <!-- 新增 start -->
+  <p class="sub-tips-item">检测结果&nbsp;</p>
+<div class="_item">
+<div class="_item-list" v-for="(item,index) in results.messageList" :key="index">
+    <el-link  :underline="false" @click="openImageDialog(index)">{{ item.info }}</el-link>
+</div>
+</div>
+  <!-- 新增 end -->
+
+</div>
     </div>
-</template>
-
-<script setup>
-import ImgUpload from '@/components/ImgUpload.vue'
-import { ref, computed, watch } from 'vue'
-import axios from '@/axios'
-import { ElMessage } from 'element-plus';
-
-// 初始化结果结构
-const structure = {
+      <!-- 图片弹窗 -->
+      <el-dialog v-model="dialogVisible" title="图片详情" width="60%">
+        <img :src="dialogImageUrl" style="width: 100%" />
+      </el-dialog>
+    </div>
+  </template>
+  
+  <script setup>
+  import ImgUpload from '@/components/ImgUpload.vue'
+  import { ref } from 'vue'
+  import axios from '@/axios'
+  import { ElMessage } from 'element-plus';
+  
+  // 初始化结果结构
+  const structure = {
     messageList: [],
     photoURL: [],
-    badmessage: [],
-};
+  };
+  
+  const results = ref({ ...structure });
+  const uploadCompleted = ref(false);
+  const showResult = ref(false);
+  const loading = ref(false);
+  const dialogVisible = ref(false);
+  const baseUrl = process.env.VUE_APP_IMG_BASE_URL;
+  
+  const tableData = ref([]);
+  const cols = ref(0);
+  const rows = ref(0);
 
-const results = ref({ ...structure });
-const uploadCompleted = ref(false);
-const showResult = ref(false);
-const loading = ref(false);
-const success = ref(false);
-const baseUrl = process.env.VUE_APP_IMG_BASE_URL;
-
-const confirmUpload = async (file) => {
+  const confirmUpload = async (file) => {
     uploadCompleted.value = true;
     showResult.value = true;
     loading.value = true;
-
     const formData = new FormData();
     formData.append('photo', file.fileList[0].raw);
-
     try {
-        const res = await axios.post('/flatDetect/', formData);
-
-        if (res.status === 200) {
-            console.log(res.data);
-            results.value.messageList = res.data.messageList;
-            results.value.photoURL = res.data.photoURL;
-            results.value.badmessage = res.data.badmessage.map((element, index) => ({
-                seq: index,
-                info: element,
-            }));
-            console.log(results.value);
-            loading.value = false;
-            success.value = true;
-
-            // 预加载当前和下一张图片
-            preloadImage(currentImageIndex.value);
-            preloadImage(currentImageIndex.value + 1);
-        } else {
-            ElMessage({
-                message: '服务器状态码错误！',
-                type: 'warning',
-            });
-            loading.value = false;
+      const res = await axios.post('/flatDetect/', formData);
+      if (res.status === 200) {
+        console.log(res.data);
+      // 设置表格数据
+      cols.value = res.data.col;
+      rows.value = res.data.row;
+      tableData.value = Array.from({ length: rows.value }, () => Array.from({ length: cols.value }));
+      for (let colIndex = 0; colIndex < rows.value; colIndex++) {
+        for (let rowIndex = 0; rowIndex < rows.value; rowIndex++) {
+          tableData.value[rowIndex][colIndex] = colIndex * rows.value + rowIndex;
         }
-
-    } catch (e) {
-        ElMessage({
-            message: '请求失败！',
-            type: 'error',
-        });
-        console.log(e);
+      }
+      results.value.messageList = res.data.messageList.map((element, index) => ({ seq: index, info: element, hover: false }));
+      console.log("数组：",results.value.messageList)
+      results.value.photoURL = res.data.photoURL;
+      console.log(results.value);
+      loading.value = false;
+      } else {
+        ElMessage({ message: '服务器状态码错误！', type: 'warning' });
         loading.value = false;
+      }
+    } catch (e) {
+      ElMessage({ message: '请求失败！', type: 'error' });
+      console.log(e);
+      loading.value = false;
     }
-};
-
-const currentImageIndex = ref(0);
-
-const currentImageUrl = computed(() => {
-    return results.value.photoURL[currentImageIndex.value]
-        ? `${baseUrl}${results.value.photoURL[currentImageIndex.value]}`
-        : '';
-});
-
-const currentImageText = computed(() => results.value.messageList[currentImageIndex.value]);
-
-const prevImage = () => {
-    if (currentImageIndex.value > 0) {
-        currentImageIndex.value--;
-        preloadImage(currentImageIndex.value - 1); // 预加载前一张图片
-    }
-};
-
-const nextImage = () => {
-    if (currentImageIndex.value < results.value.photoURL.length - 1) {
-        currentImageIndex.value++;
-        preloadImage(currentImageIndex.value + 1); // 预加载下一张图片
-    }
-};
-
-const mouseX = ref(null);
-const mouseY = ref(null);
-const GetMousePos = (e) => {
-    mouseX.value = e.offsetX;
-    mouseY.value = e.offsetY;
-};
-
-const onCancel = () => {
+  };
+  
+  const dialogImageUrl = ref('');
+  
+  const openImageDialog = (seq) => {
+    const index = seq; // 检测信息序号和图片序号相同
+    dialogImageUrl.value = baseUrl + results.value.photoURL[index];
+    dialogVisible.value = true;
+  };
+  
+  const onCancel = () => {
     console.log("您取消了上传");
     showResult.value = false;
     results.value = { ...structure };
-    currentImageIndex.value = 0;
     uploadCompleted.value = false;
-};
-
-// 异步加载图片函数
-const preloadImageAsync = (url) => {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = url;
-    });
-};
-
-// 预加载图片函数
-const preloadImage = async (index) => {
-    if (results.value.photoURL[index]) {
-        const imgUrl = `${baseUrl}${results.value.photoURL[index]}`;
-        try {
-            await preloadImageAsync(imgUrl);
-        } catch (error) {
-            console.error(`Failed to preload image: ${imgUrl}`, error);
-        }
-    }
-};
-
-// 监听图片索引变化，确保预加载当前图片和下一张图片
-watch(currentImageIndex, (newIndex) => {
-    preloadImage(newIndex);       // 预加载当前图片
-    preloadImage(newIndex + 1);   // 预加载下一张图片
-});
-</script>
-
-
-<style lang="scss" scoped>
-.page-title {
-    font-size: 24px;
+  };
+  </script>
+  
+  <style scoped>
+  .page-title {
+    font-size: 20px;
     font-weight: bold;
     text-align: center;
     margin-bottom: 20px;
-}
-
-.grid-container {
+  }
+  
+  .grid-container {
     display: grid;
-    grid-template-columns: 1fr; // 声明列的宽度
-    // grid-template-rows: 2fr; // 声明行的宽度
-    gap: 20px; // 每列之间的间距
-    // grid-template-areas: 
-    //     "imgUpload result result"
-    //     "result   result result";
+    grid-template-columns: 1fr;
+    gap: 0px;
     justify-content: center;
-}
-
-.tips {
+  }
+  
+  .upload-and-table-container {
     display: flex;
-    text-align: center;
-    justify-content: center;
-}
+    justify-content: space-between;
+    align-items: flex-start; /* 控制组件上下对齐 */
+  }
+  
+  .upload-container {
+    flex: 1; /* 使上传组件自动填充剩余空间 */
+  }
+  
+  .table-container {
+    flex: 1; /* 使表格自动填充剩余空间 */
+  }
+  
 
-.upload-container {
-    // grid-area: imgUpload;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-}
-
-.default {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.result-list-container {
-    // grid-area: result;
+  .result-list-container {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     width: 95%;
     margin: 0 auto;
-}
+  }
+  
+  .el-table {
+    margin-top: 20px;
+  }
+  
+  .el-dialog {
+    max-height: 80vh !important;
+  }
+  
+  .tips {
+    text-align: center;
+  }
 
-.detail-container {
-    display: grid;
-    grid-gap: 10px;
-    grid-template-areas: 
-        "img text text"
-        "img mouse button";
-    // display: flex; /* 将容器设置为 Flexbox 布局 */
-    align-items: center; /* 垂直居中对齐 */
-    justify-content: flex-start; /* 水平左对齐 */
-
-    // .photo-display-container {
-    //     flex: 1; /* 让图片容器自动填充剩余空间 */
-    // }
-
-    // .tip-info-container {
-    //     flex: 1; /* 让检测信息容器自动填充剩余空间 */
-    // }
-}
-
-.mouse-pos-container {
-    grid-area: mouse;
-    margin: 0 5px 5px 0; // 上右下左
-}
-
-.button-container {
-    grid-area: button;
-    margin: 0 0 5px 5px; 
-}
-
-
-.photo-display-container {
-    grid-area: img;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start; /* 左对齐 */
-    padding: 10px;
-    box-sizing: border-box;
-
-    img {
-        max-width: 400px; /* 设置图片最大宽度 */
-        width: auto; /* 自适应宽度 */
-        height: auto; /* 自适应高度 */
-    }
-}
-
-.tip-info-container {
-    grid-area: text;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  ._item{
     width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    flex-wrap: wrap;
+    border: 1px solid #f1f1f1;
+  }
 
-    .img-result-container, .mouse-pos-container, .button-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
+  ._item-list{
+    width: 33.33333333%;
+    height: 35px;
+    border: 1px solid #f1f1f1;
+    padding: 6px;
+    box-sizing: border-box;
+  }
+
+  .table-container .scaled-table {
+  transform: scale(0.8); /* 缩小表格 */
+  transform-origin: top left; /* 设置缩放的原点 */
 }
 
 .sub-tips-item {
     font-weight: bolder;
     display: inline-block;
+    font-size: 15px;
 }
-
-.sequence-info {
-    font-size: 14px;
-    color: #888;
-    text-align: center;
-    // margin-top: 5px;
-    display: inline-block;
-    font-style: italic;
-}
-</style>
+  </style>
+  
