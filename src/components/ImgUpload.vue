@@ -7,7 +7,7 @@
       <el-upload 
         ref="uploadRef"
         :class="uploadClass"
-        action="''"  
+        action="#"  
         list-type="picture-card"
         :auto-upload="false"
         :on-change="handleChange"
@@ -15,6 +15,7 @@
       >
         <!-- 点击按钮才允许上传 -->
         <el-icon><Plus /></el-icon>
+
         <template #tip v-if="uploadClass === 'showUpload'">
           <div class="el-upload__tip">
             请上传png/jpg文件
@@ -46,7 +47,7 @@
       </el-upload>
 
       <!-- 预览插槽可见 -->
-      <el-dialog v-model="dialogVisible" height="705px">
+      <el-dialog v-model="dialogVisible">
           <div class="picture-container">
             <img w-full :src="dialogImageUrl" alt="Preview Image" class="picture"/>
           </div>
@@ -81,7 +82,7 @@ const dialogVisible = ref(false) //缩略图是否可见
 
 const uploadRef = ref(null) //对el-upload的引用
 
-const fileList = reactive([]) //选择的图片列表
+const fileList = reactive([]) //选择的图片列表；会传递给父组件
 
 const isSelectedShow = ref(true) //是否显示上传的图片列表
 
@@ -106,15 +107,7 @@ const handleChange = (File) =>{
     uploadRef.value.clearFiles();//调用el-upload的clearFiles()函数清空已经选择的文件列表
     isSelectedShow.value = false;  //不显示上传的文件列表
     return false;
-  }
-  // 文件过大
-  // else if(!isLt){
-  //   ElMessage.error('上传图片大小不能超过5MB!');
-  //   uploadRef.value.clearFiles();  //调用el-upload的clearFiles()函数清空已经选择的文件列表
-  //   isSelectedShow.value = false;  //不显示上传的文件列表
-  //   return false;
-  // }
-  else{
+  } else {
     fileList.push(File);     //将新选择的文件File加入fileList中
     isSelectedShow.value = true;   //显示上传的文件列表
     return true;
@@ -147,6 +140,8 @@ const onCancel = () =>{
 // 删除图片
 const handleRemove = () =>{
   fileList.splice(0, 1);//删除fileList的第一个元素
+  // 同时隐藏插槽
+  uploadRef.value.clearFiles();//调用el-upload的clearFiles()函数清空已经选择的文件列表
   emit('onCancel');
 }
 
@@ -185,29 +180,35 @@ const handlePreview = (uploadFile) => {
 </style>
   
 <style scoped>
-  .picture-container {
-    margin:0 auto; 
-    width:30vw;
-    height:30vw;
-    overflow: hidden; /* 隐藏超出容器的部分 */
-  }
+/* 此处修改的是点击"放大"按钮后，跳出的图片的照片 */
+.picture-container {
+  margin:0 auto; 
+  width:30vw;
+  height:auto;
+  /* overflow: hidden; 隐藏超出容器的部分 */
+}
 
-   .picture-container .picture {
-    /* display: block; */
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    object-position: center;
-  }
+  .picture-container .picture {
+  /* display: block; */
+  width:100%;
+  height:100%;
+  /* 不对object-fit进行修改，这样按照原本的格式,preview是完整的图片 */
+  object-fit:contain;  
+  object-position: center;
+}
 
-  .upload-container{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
+.upload-container{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 
-  .btn{
-    color:rgb(255, 255, 255);
-  }
+.el-upload-list--picture-card .el-upload-list__item-thumbnail {
+  object-fit: contain
+}
+
+.btn{
+  color:rgb(255, 255, 255);
+}
 </style>
   

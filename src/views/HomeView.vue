@@ -73,11 +73,12 @@ onMounted(() => {
 <style lang="scss" scoped>
 .header {
   position: relative;
+  height: 95vh;
 }
 
 .header-image {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
 }
 

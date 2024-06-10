@@ -3,70 +3,84 @@
         <p class="page-title">玻璃幕墙平整度检测</p>
 
         <div class="grid-container">
-            <!-- 图片上传部分 -->
-            <div class="upload-container">
-                <p class="tips">请您上传一张图片</p>
-                <ImgUpload 
-                    @confirmUpload="confirmUpload"
-                    @onCancel="onCancel"
-                    :disabled="uploadCompleted"
+            <!-- 把他俩放一块儿是为了布局方便 -->
+            <div class="upload-and-table-container">
+                <!-- 图片上传部分 -->
+                <div class="upload-container">
+                    <p class="tips">请您上传一张图片</p>
+                    <ImgUpload 
+                        @confirmUpload="confirmUpload" 
+                        @onCancel="onCancel" 
+                        :disabled="uploadCompleted" 
+                        v-model:visible="showUpload"
+                    >
+                    </ImgUpload>
+                </div>
+
+                <!-- 新增的表格 -->
+                <div 
+                    v-if="showResult" class="table-container" 
+                    v-loading="loading"
+                    element-loading-text="检测中..."
+                    element-loading-background="rgb(255,255,255)"
                 >
-                </ImgUpload>
-            </div>
-
-            <!-- 结果展示部分 -->
-            <div v-if="showResult" class="result-list-container" v-loading="loading">
-                <el-divider></el-divider>
-                <div class="default" v-if="success">
-                    <!-- 整体结果展示 -->
-                    <div class="overall-result-container">
-                        <p class="sub-tips-item">检测结果&nbsp;</p>
-                         <!-- 添加提示信息 -->
-                        <p class="sequence-info">(按从上往下，从左往右的顺序进行玻璃序号计数)</p>
-                    </div>
-                    
-                    <!-- 详细结果展示 -->
-                    <div class="detail-container">
-                        <div class="photo-display-container">
-                            <img :src="currentImageUrl" class="photo-display-img" @mousemove="GetMousePos">
-                        </div>
-
-                        <div class="tip-info-container">
-                            <div class="img-result-container">
-                                <div>{{ currentImageText }}</div>
-                            </div>
-                        </div>
-
-                        <div class="mouse-pos-container">
-                            <div>X = {{ mouseX }}, Y = {{ mouseY }}</div>
-                        </div>
-
-                        <div class="button-container">
-                            <el-button @click="prevImage">上一张</el-button>
-                            <el-button @click="nextImage">下一张</el-button>
-                        </div>
-                    </div>
-
-
-                    <!-- 表格展示所有不一致的图片信息 -->
-                    <el-table :data="results.badmessage" border style="width: 90%">
-                        <el-table-column prop="seq" label="序号" width="180" align="center"/>
-                        <el-table-column prop="info" label="信息" align="center"/>
+                    <p class="tips-item">可识别到的完整玻璃编号矩阵&nbsp;</p>
+                    <el-table :data="tableData" border show-header="false" class="scaled-table">
+                        <el-table-column v-for="(col, index) in cols" :key="index" align="center">
+                            <template v-slot="scope">
+                                {{ scope.row[index] }}
+                            </template>
+                        </el-table-column>
                     </el-table>
                 </div>
+            </div>
 
-                <!-- 如果没有成功获取结果，显示缺省组件 -->
+            <!-- 原来的检测信息表格 -->
+            <div v-if="showResult" class="result-list-container" 
+                v-loading="loading"
+                element-loading-text="结果拉取中..."
+                element-loading-background="rgb(255,255,255)"
+            >
+                <p class="tips-item">不一致图片信息&nbsp;</p>
+
+                <!-- 如果请求成功 -->
+                <div v-if="postSuccess">
+                    <!-- 如果有表格 -->
+                    <div v-if="showTable">
+                        <div class="_item">
+                            <div class="_item-list" v-for="(item,index) in results.messageList" :key="index">
+                                <el-link  :underline="false" @click="openImageDialog(index)">
+                                    {{ item.info }}
+                                </el-link>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 如果没有表格 -->
+                    <div v-else>
+                        <p class="result-tips-item">未检测到不一致！可认为玻璃平整！</p>
+                    </div>
+                    
+                </div>
+
                 <div v-else>
-                    <p>没有拿到结果</p>
+                    <p class="result-tips-item">获取检测结果失败！&nbsp;</p>
                 </div>
             </div>
+
+            
         </div>
+
+        <!-- 图片弹窗 -->
+        <el-dialog v-model="dialogVisible" title="图片详情" width="60%">
+            <img :src="dialogImageUrl" style="width: 100%" />
+        </el-dialog>
     </div>
 </template>
-
+  
 <script setup>
 import ImgUpload from '@/components/ImgUpload.vue'
-import { ref, computed, watch } from 'vue'
+import { ref } from 'vue'
 import axios from '@/axios'
 import { ElMessage } from 'element-plus';
 
@@ -74,234 +88,192 @@ import { ElMessage } from 'element-plus';
 const structure = {
     messageList: [],
     photoURL: [],
-    badmessage: [],
 };
 
 const results = ref({ ...structure });
 const uploadCompleted = ref(false);
-const showResult = ref(false);
+const showResult = ref(false); // 是否展示结果列表
+const postSuccess = ref(false); // 获取结果是否成功
+const showTable = ref(false); // 是否展示结果列表
+
 const loading = ref(false);
-const success = ref(false);
+const dialogVisible = ref(false);
 const baseUrl = process.env.VUE_APP_IMG_BASE_URL;
 
+const tableData = ref([]);
+
+const cols = ref(0);
+const rows = ref(0);
 const confirmUpload = async (file) => {
     uploadCompleted.value = true;
     showResult.value = true;
     loading.value = true;
-
     const formData = new FormData();
     formData.append('photo', file.fileList[0].raw);
 
     try {
         const res = await axios.post('/flatDetect/', formData);
-
         if (res.status === 200) {
-            console.log(res.data);
-            results.value.messageList = res.data.messageList;
-            results.value.photoURL = res.data.photoURL;
-            results.value.badmessage = res.data.badmessage.map((element, index) => ({
-                seq: index,
-                info: element,
-            }));
-            console.log(results.value);
-            loading.value = false;
-            success.value = true;
+            console.log("res.data:",res.data);
+            // 请求成功
+            postSuccess.value = true;
 
-            // 预加载当前和下一张图片
-            preloadImage(currentImageIndex.value);
-            preloadImage(currentImageIndex.value + 1);
+            // 设置表格数据
+            cols.value = res.data.col;
+            rows.value = res.data.row;
+            // 先创建一个二维数组
+            tableData.value = Array.from({ length: rows.value }, 
+                () => Array.from({ length: cols.value }));
+
+            for (let colIndex = 0; colIndex < cols.value; colIndex++) {
+                for (let rowIndex = 0; rowIndex < rows.value; rowIndex++) {
+                    tableData.value[rowIndex][colIndex] = colIndex * rows.value + rowIndex;
+                }
+            }
+
+            if (res.data.messageList !== []) {
+                // 就算row和column有值，photoURL不一定有值；算法可以识别的只有完整的玻璃数
+                results.value.messageList = res.data.messageList.map((element, index) => ({ 
+                    seq: index, 
+                    info: element, 
+                    hover: false 
+                }));
+                console.log("数组：",results.value.messageList)
+                results.value.photoURL = res.data.photoURL;
+                console.log(results.value);
+                showTable.value = true; // 可以展示表格
+            } else {
+                // 否则不渲染不一致信息表格
+                showTable.value = false;
+            }
+            
+            loading.value = false; // 取消遮罩
+            
         } else {
-            ElMessage({
-                message: '服务器状态码错误！',
-                type: 'warning',
-            });
+            ElMessage({ message: '服务器状态码错误！', type: 'warning' });
             loading.value = false;
         }
-
     } catch (e) {
-        ElMessage({
-            message: '请求失败！',
-            type: 'error',
-        });
+        ElMessage({ message: '请求失败！', type: 'error' });
         console.log(e);
         loading.value = false;
     }
 };
 
-const currentImageIndex = ref(0);
+const dialogImageUrl = ref('');
 
-const currentImageUrl = computed(() => {
-    return results.value.photoURL[currentImageIndex.value]
-        ? `${baseUrl}${results.value.photoURL[currentImageIndex.value]}`
-        : '';
-});
-
-const currentImageText = computed(() => results.value.messageList[currentImageIndex.value]);
-
-const prevImage = () => {
-    if (currentImageIndex.value > 0) {
-        currentImageIndex.value--;
-        preloadImage(currentImageIndex.value - 1); // 预加载前一张图片
-    }
-};
-
-const nextImage = () => {
-    if (currentImageIndex.value < results.value.photoURL.length - 1) {
-        currentImageIndex.value++;
-        preloadImage(currentImageIndex.value + 1); // 预加载下一张图片
-    }
-};
-
-const mouseX = ref(null);
-const mouseY = ref(null);
-const GetMousePos = (e) => {
-    mouseX.value = e.offsetX;
-    mouseY.value = e.offsetY;
+const openImageDialog = (seq) => {
+    const index = seq; // 检测信息序号和图片序号相同
+    dialogImageUrl.value = baseUrl + results.value.photoURL[index];
+    dialogVisible.value = true;
 };
 
 const onCancel = () => {
     console.log("您取消了上传");
     showResult.value = false;
+    postSuccess.value = false;
+    showTable.value = false;
     results.value = { ...structure };
-    currentImageIndex.value = 0;
     uploadCompleted.value = false;
 };
-
-// 预加载图片函数
-const preloadImage = (index) => {
-    if (results.value.photoURL[index]) {
-        const img = new Image();
-        img.src = `${baseUrl}${results.value.photoURL[index]}`;
-    }
-};
-
-// 监听图片索引变化，确保预加载当前图片和下一张图片
-watch(currentImageIndex, (newIndex) => {
-    preloadImage(newIndex);       // 预加载当前图片
-    preloadImage(newIndex + 1);   // 预加载下一张图片
-});
 </script>
 
-
-<style lang="scss" scoped>
+<style scoped>
 .page-title {
-    font-size: 24px;
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 20px;
+    font-size: 24px; /* 设置标题字体大小 */
+    font-weight: bold; /* 设置标题粗细 */
+    text-align: center; /* 居中对齐 */
+    margin-bottom: 20px; /* 下方间距 */
 }
 
 .grid-container {
     display: grid;
-    grid-template-columns: 1fr; // 声明列的宽度
-    // grid-template-rows: 2fr; // 声明行的宽度
-    gap: 20px; // 每列之间的间距
-    // grid-template-areas: 
-    //     "imgUpload result result"
-    //     "result   result result";
+    grid-template-columns: 1fr;
+    gap: 0px;
     justify-content: center;
 }
 
-.tips {
+.upload-and-table-container {
     display: flex;
-    text-align: center;
-    justify-content: center;
+    justify-content: space-between;
+    align-items: flex-start; /* 控制组件上下对齐 */
 }
 
 .upload-container {
-    // grid-area: imgUpload;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    flex: 1; /* 使上传组件自动填充剩余空间 */
 }
 
-.default {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+.table-container {
+    flex: 1; /* 使表格自动填充剩余空间 */
+    margin: 10px 0;
+
+    /* 添加边框让他好看一点.. */
+    border: 1px solid #4f636f; /* 边框颜色和粗细 */
+    border-radius: 15px; /* 圆角 */
+    box-shadow: 0 4px 8px rgba(73, 71, 71, 0.463); /* 阴影 */
+    padding: 10px; /* 内边距 */
 }
+
 
 .result-list-container {
-    // grid-area: result;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     width: 95%;
-    margin: 0 auto;
+    margin: 20px auto;
+
+    /* 添加边框 */
+    border: 1px solid #4f636f; /* 边框颜色和粗细 */
+    border-radius: 15px; /* 圆角 */
+    box-shadow: 0 4px 8px rgba(73, 71, 71, 0.463); /* 阴影 */
+    padding: 10px 20px; /* 内边距 */
 }
 
-.detail-container {
-    display: grid;
-    grid-gap: 10px;
-    grid-template-areas: 
-        "img text text"
-        "img mouse button";
-    // display: flex; /* 将容器设置为 Flexbox 布局 */
-    align-items: center; /* 垂直居中对齐 */
-    justify-content: flex-start; /* 水平左对齐 */
-
-    // .photo-display-container {
-    //     flex: 1; /* 让图片容器自动填充剩余空间 */
-    // }
-
-    // .tip-info-container {
-    //     flex: 1; /* 让检测信息容器自动填充剩余空间 */
-    // }
+.el-table {
+    margin-top: 20px;
 }
 
-.mouse-pos-container {
-    grid-area: mouse;
-    margin: 0 5px 5px 0; // 上右下左
+/* 应该是害怕弹窗的尺寸过大 */
+.el-dialog {
+    max-height: 80vh !important;
 }
 
-.button-container {
-    grid-area: button;
-    margin: 0 0 5px 5px; 
+.tips {
+    text-align: center;
 }
 
-
-.photo-display-container {
-    grid-area: img;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start; /* 左对齐 */
-    padding: 10px;
-    box-sizing: border-box;
-
-    img {
-        max-width: 700px; /* 设置图片最大宽度 */
-        width: auto; /* 自适应宽度 */
-        height: auto; /* 自适应高度 */
-    }
-}
-
-.tip-info-container {
-    grid-area: text;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+._item{
     width: 100%;
-
-    .img-result-container, .mouse-pos-container, .button-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    flex-wrap: wrap;
+    border: 1px solid #f1f1f1;
 }
 
-.sub-tips-item {
+._item-list{
+    width: 33.33333333%;
+    height: 35px;
+    border: 1px solid #f1f1f1;
+    padding: 6px;
+    box-sizing: border-box;
+}
+
+.table-container .scaled-table {
+  transform: scale(0.8); /* 缩小表格 */
+  transform-origin: top left; /* 设置缩放的原点 */
+}
+
+.tips-item {
     font-weight: bolder;
     display: inline-block;
+    font-size: 15px;
 }
 
-.sequence-info {
-    font-size: 14px;
-    color: #888;
-    text-align: center;
-    // margin-top: 5px;
+.result-tips-item {
     display: inline-block;
-    font-style: italic;
+    font-size: 15px;
+    font-style:italic;
 }
 </style>
+  
