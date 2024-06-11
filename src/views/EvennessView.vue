@@ -25,7 +25,7 @@
                     element-loading-background="rgb(255,255,255)"
                 >
                     <p class="tips-item">可识别到的完整玻璃编号矩阵&nbsp;</p>
-                    <el-table :data="tableData" border show-header="false" class="scaled-table">
+                    <el-table :data="tableData" border :show-header="false" class="scaled-table">
                         <el-table-column v-for="(col, index) in cols" :key="index" align="center">
                             <template v-slot="scope">
                                 {{ scope.row[index] }}
@@ -127,7 +127,7 @@ const confirmUpload = async (file) => {
 
             for (let colIndex = 0; colIndex < cols.value; colIndex++) {
                 for (let rowIndex = 0; rowIndex < rows.value; rowIndex++) {
-                    tableData.value[rowIndex][colIndex] = colIndex * rows.value + rowIndex;
+                    tableData.value[rowIndex][colIndex] = colIndex * rows.value + rowIndex +1 ;
                 }
             }
 
@@ -204,8 +204,10 @@ const onCancel = () => {
 }
 
 .table-container {
-    flex: 1; /* 使表格自动填充剩余空间 */
-    margin: 10px 0;
+    display: flex; /* 确保是 flex 容器 */  
+    flex-direction: column; /* 如果需要垂直居中，通常设置为 column，但这里你可能想要 row */  
+    align-items: center; /* 垂直居中 */  
+    justify-content: center; /* 水平居中（如果 flex-direction 是 row）*/  
 
     /* 添加边框让他好看一点.. */
     border: 1px solid #4f636f; /* 边框颜色和粗细 */
@@ -231,6 +233,28 @@ const onCancel = () => {
 
 .el-table {
     margin-top: 20px;
+    border-bottom: 1px solid #000;
+    border-right: 1px solid #000;
+    border-left: 1px solid #000;
+    border-top: 1px solid #000;
+    margin: 0 auto;
+}
+
+/deep/.el-table th {
+    border: 1px solid #000;
+    border-right: none;
+    border-bottom: none;
+}
+
+/deep/.el-table td {
+    border: 1px solid #000;
+    border-right: none;
+    border-bottom: none;
+}
+
+/**改变表头标题颜色*/
+ /deep/.el-table thead {
+    color: #000;
 }
 
 /* 应该是害怕弹窗的尺寸过大 */
@@ -248,20 +272,20 @@ const onCancel = () => {
     justify-content: flex-start;
     align-items: center;
     flex-wrap: wrap;
-    border: 1px solid #f1f1f1;
+    border: 1px solid #6d829d;
 }
 
 ._item-list{
     width: 33.33333333%;
     height: 35px;
-    border: 1px solid #f1f1f1;
+    border: 1px solid #839ab8;
     padding: 6px;
     box-sizing: border-box;
 }
 
 .table-container .scaled-table {
   transform: scale(0.8); /* 缩小表格 */
-  transform-origin: top left; /* 设置缩放的原点 */
+  transform-origin: top; /* 设置缩放的原点 */
 }
 
 .tips-item {
