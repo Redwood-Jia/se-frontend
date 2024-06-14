@@ -121,6 +121,7 @@ const confirmUpload = async (file) => {
             // 设置表格数据
             cols.value = res.data.col;
             rows.value = res.data.row;
+            
             // 先创建一个二维数组
             tableData.value = Array.from({ length: rows.value }, 
                 () => Array.from({ length: cols.value }));
@@ -198,13 +199,13 @@ const onCancel = () => {
 
 .upload-and-table-container {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-evenly;
     align-items: flex-start; /* 控制组件上下对齐 */
 }
 
-.upload-container {
-    flex: 1; /* 使上传组件自动填充剩余空间 */
-}
+/* .upload-container {
+    flex: 1;
+} */
 
 .table-container {
     display: flex; /* 确保是 flex 容器 */  
@@ -224,7 +225,7 @@ const onCancel = () => {
 .result-list-container {
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
+    justify-content: center;
     width: 95%;
     margin: 20px auto;
 
@@ -285,6 +286,7 @@ const onCancel = () => {
     border: 1px solid #839ab8;
     padding: 6px;
     box-sizing: border-box;
+    justify-content: center;
 }
 
 .table-container .scaled-table {
